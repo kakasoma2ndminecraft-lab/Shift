@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shift</title>
+  <style>
+    /* 全体のデザイン */
+    body { margin:0; padding:0; font-family:'Noto Sans JP',sans-serif; background: radial-gradient(circle at 30% 20%, #2e3f53, #1b2735 60%, #131b24); color:#fff; overflow:hidden; }
+    .bg-glow { position: fixed; width:100%; height:100%; pointer-events:none; background: radial-gradient(circle at 70% 80%, rgba(88,127,155,0.35), transparent 60%); filter: blur(60px); }
+    .center { width:100%; height:100vh; display:flex; justify-content:center; align-items:center; }
+    .card { background: rgba(255,255,255,0.06); backdrop-filter: blur(12px); border-radius:18px; padding:32px; width:360px; text-align:center; box-shadow:0 8px 30px rgba(0,0,0,0.25); animation: fadeIn 0.7s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    input, select { width:86%; padding:12px; margin:8px 0; border-radius:10px; border:none; outline:none; font-size:15px; }
+    button { width:90%; padding:12px; margin-top:12px; background:#4f7ea3; border:none; border-radius:10px; font-size:16px; color:white; cursor:pointer; transition:0.25s; }
+    button:hover { background:#6fa2c4; transform:translateY(-2px); }
+    .hidden { display:none; }
+    .home { padding:20px; max-width:860px; margin:24px auto; }
+    .row { display:flex; gap:12px; align-items:center; }
+    .store-item, .task-item { background: rgba(255,255,255,0.06); padding:14px; border-radius:14px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
+    #purchaseAnimation { position: fixed; top:50%; left:50%; transform:translate(-50%, -50%); background: linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0.12)); padding:24px 40px; border-radius:20px; font-size:22px; display:none; animation: pop 1.2s ease; backdrop-filter: blur(14px); box-shadow: 0 0 40px rgba(255,255,255,0.28), 0 0 90px rgba(80,140,255,0.18); cursor:pointer; text-align:center; color:#072038; font-weight:700; }
+    @keyframes pop { 0% { transform:translate(-50%, -50%) scale(0.4); opacity:0; filter:brightness(0.6); } 40% { transform:translate(-50%, -50%) scale(1.3); opacity:1; filter:brightness(1.6); } 70% { transform:translate(-50%, -50%) scale(1.08); filter:brightness(1.2); } 100% { transform:translate(-50%, -50%) scale(1); opacity:1; filter:brightness(1); } }
+    .modal { position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.6); padding:18px; border-radius:12px; display:none; z-index:2000; }
+    .small { width:160px; }
+  </style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <div class="center" id="loginSelect">
+    <div class="card">
+      <h2>Shift</h2>
+      <button onclick="showAdminLogin()">管理者ログイン</button>
+      <button onclick="showUserLogin()">ノーマルログイン</button>
+    </div>
+  </div>
+
+  <div class="center hidden" id="adminLogin">
+    <div class="card">
+      <h3>管理者ログイン</h3>
+      <input id="adminID" placeholder="管理ID" />
+      <input id="adminPass" placeholder="パスワード" type="password" />
+      <button onclick="adminLoginCheck()">ログイン</button>
+      <button onclick="backToSelect()">戻る</button>
+    </div>
+  </div>
+
+  <div class="center hidden" id="userLogin">
+    <div class="card">
+      <h3>ログイン</h3>
+      <input id="uid" placeholder="ユーザーID" />
+      <input id="upass" placeholder="パスワード" type="password" />
+      <button onclick="userLoginCheck()">ログイン</button>
+      <button onclick="backToSelect()">戻る</button>
+    </div>
+  </div>
+
+  <div class="center hidden" id="adminPanel">
+    <div class="card">
+      <h2>管理者パネル</h2>
+      <input id="newUser" placeholder="新規ユーザーID" />
+      <input id="newPass" placeholder="パスワード" />
+      <button onclick="addUser()">アカウント追加</button>
+      <button onclick="deleteUser()">アカウント削除</button>
+      <button onclick="goHome()">ホームへ</button>
+      <h3>ユーザー一覧</h3>
+      <div id="userList"></div>
+    </div>
+  </div>
+
+  <div id="home" class="home hidden">
+    <h2>Shift ホーム</h2>
+    <p>残高: <span id="balance">0</span> Shift</p>
+
+    <h3>ストア</h3>
+    <div class="store-item"><span>✏️ えんぴつ</span><button onclick="buyItem(5)">5</button></div>
+    <div class="store-item"><span>📘 ノート</span><button onclick="buyItem(8)">8</button></div>
+    <div class="store-item"><span>🍪 クッキー</span><button onclick="buyItem(3)">3</button></div>
+  </div>
+
+  <div id="purchaseAnimation">購入完了！</div>
+
+  <script>
+    const users = {};
+    const usersBalances = {};
+    let currentUser = null;
+
+    users['alice'] = 'pass'; usersBalances['alice'] = 15;
+    users['bob'] = 'pass'; usersBalances['bob'] = 8;
+
+    function showAdminLogin(){ document.getElementById('loginSelect').classList.add('hidden'); document.getElementById('adminLogin').classList.remove('hidden'); }
+    function showUserLogin(){ document.getElementById('loginSelect').classList.add('hidden'); document.getElementById('userLogin').classList.remove('hidden'); }
+    function backToSelect(){ document.getElementById('adminLogin').classList.add('hidden'); document.getElementById('userLogin').classList.add('hidden'); document.getElementById('loginSelect').classList.remove('hidden'); }
+
+    function adminLoginCheck(){
+      const id = document.getElementById('adminID').value;
+      const pw = document.getElementById('adminPass').value;
+      if(id === 'Shifted' && pw === 'LetsShift'){
+        currentUser = 'Shifted';
+        users['Shifted'] = users['Shifted'] || 'admin';
+        usersBalances['Shifted'] = usersBalances['Shifted'] || 1000;
+        document.getElementById('adminLogin').classList.add('hidden');
+        document.getElementById('adminPanel').classList.remove('hidden');
+        updateUserList();
+      } else { alert('認証失敗'); }
+    }
+
+    function updateUserList(){
+      const listDiv = document.getElementById('userList');
+      listDiv.innerHTML = '';
+      for(const id in users){
+        const div = document.createElement('div');
+        div.textContent = id + ' - 残高: ' + (usersBalances[id] || 0);
+        listDiv.appendChild(div);
+      }
+    }
+
+    function addUser(){
+      const id = document.getElementById('newUser').value.trim();
+      const pw = document.getElementById('newPass').value.trim();
+      if(!id || !pw){ alert('ID/PW不足'); return; }
+      users[id] = pw; usersBalances[id] = usersBalances[id] || 10;
+      alert('追加完了: ' + id);
+      document.getElementById('newUser').value = '';
+      document.getElementById('newPass').value = '';
+      updateUserList();
+    }
+
+    function deleteUser(){
+      const id = document.getElementById('newUser').value.trim();
+      if(users[id]){ delete users[id]; delete usersBalances[id]; alert('削除完了'); updateUserList(); } else { alert('存在しないID'); }
+    }
+
+    function userLoginCheck(){
+      const id = document.getElementById('uid').value.trim();
+      const pw = document.getElementById('upass').value.trim();
+      if(users[id] && users[id] === pw){
+        currentUser = id;
+        document.getElementById('userLogin').classList.add('hidden');
+        goHome();
+      } else { alert('ログイン失敗'); }
+    }
+
+    function goHome(){
+      document.querySelectorAll('.center').forEach(c=>c.classList.add('hidden'));
+      document.getElementById('home').classList.remove('hidden');
+      document.getElementById('balance').textContent = usersBalances[currentUser] || 0;
+    }
+
+    function buyItem(price){
+      if(!currentUser){ alert('ログインしてください'); return; }
+      usersBalances[currentUser] = usersBalances[currentUser] || 0;
+      if(usersBalances[currentUser] < price){ alert('残高不足'); return; }
+      usersBalances[currentUser] -= price;
+      document.getElementById('balance').textContent = usersBalances[currentUser];
+      const anim = document.getElementById('purchaseAnimation');
+      anim.textContent = '購入完了！ -' + price + ' Shift';
+      anim.style.display = 'block';
+      function hide(){ anim.style.display='none'; anim.removeEventListener('click', hide); }
+      anim.addEventListener('click', hide);
+    }
+  </script>
+</body>
+</html>
