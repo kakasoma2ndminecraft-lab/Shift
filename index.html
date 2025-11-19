@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Shift — Demo</title>
+<style>
+  :root{
+    --bg:#f6f8fa; --card:#fff; --accent:#3e5f7a; --muted:#7a8b98;
+    --gap:18px; font-family: "Noto Sans JP", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  html,body{height:100%; margin:0; background:var(--bg); color:#111;}
+  .app{max-width:1000px; margin:20px auto; padding:24px; display:grid; gap:var(--gap);}
+  .splash{display:flex;align-items:center;justify-content:center; gap:12px; padding:40px; background:linear-gradient(180deg,#eef4f8,#fff); border-radius:12px;}
+  .splash h1{margin:0; color:var(--accent); letter-spacing:0.6px;}
+  .row{display:flex; gap:12px; align-items:center;}
+  .card{background:var(--card); border-radius:12px; padding:16px; box-shadow:0 6px 18px rgba(30,40,50,0.06);}
+  .balance{display:flex; justify-content:space-between; align-items:center;}
+  .balance .amount{font-size:28px; font-weight:700; color:var(--accent);}
+  .missions, .store, .history{display:grid; gap:12px;}
+  .mission-item{display:flex; justify-content:space-between; align-items:center; padding:12px; border-radius:10px; background:linear-gradient(90deg,#fff,#fbfdff);}
+  .store-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px;}
+  .product{padding:12px; border-radius:10px; text-align:center; cursor:pointer;}
+  .product .emoji{font-size:36px;}
+  .btn{background:var(--accent); color:#fff; padding:8px 12px; border-radius:8px; border:none; cursor:pointer;}
+  .muted{color:var(--muted); font-size:13px;}
+  .top-actions{display:flex; gap:8px;}
+  .send-form{display:flex; gap:8px; align-items:center;}
+  .send-form input{padding:8px; border-radius:8px; border:1px solid #e1e6ea;}
+  footer{margin-top:12px; text-align:center; color:var(--muted); font-size:13px;}
+  /* responsive tweaks */
+  @media(min-width:900px){
+    .app{grid-template-columns: 2fr 1fr; align-items:start;}
+    .right-col{display:flex; flex-direction:column; gap:12px;}
+  }
+</style>
+</head>
+<body>
+<main class="app" id="app">
+  <section class="card splash" aria-hidden="false">
+    <div>
+      <h1>Shift</h1>
+      <div class="muted">学校のための静かな経済 — デモ</div>
+    </div>
+    <div style="margin-left:auto; text-align:right;">
+      <div class="muted">Signed in as</div>
+      <strong id="username">田中 太郎</strong>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="balance">
+      <div>
+        <div class="muted">HARUコイン残高</div>
+        <div class="amount" id="balance">1,200</div>
+      </div>
+      <div class="top-actions">
+        <button class="btn" id="btn-refresh">同期</button>
+        <button class="btn" id="btn-open-send">送る</button>
+      </div>
+    </div>
+
+    <hr style="margin:12px 0; border:none; border-top:1px solid #eef3f6;">
+
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 style="margin:0">今日のミッション</h3>
+        <div class="muted">簡単に稼げる</div>
+      </div>
+
+      <div class="missions" id="missions" style="margin-top:12px;">
+        <!-- mission items -->
+      </div>
+    </div>
+
+    <hr style="margin:12px 0; border:none; border-top:1px solid #eef3f6;">
+
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 style="margin:0">ストア</h3>
+        <div class="muted">HARUコインで購入</div>
+      </div>
+      <div class="store-grid" id="store" style="margin-top:12px;">
+        <!-- products -->
+      </div>
+    </div>
+  </section>
+
+  <aside class="right-col">
+    <section class="card">
+      <h4 style="margin:0 0 8px 0">送金（QR or 検索）</h4>
+      <div class="send-form">
+        <input id="send-to" placeholder="相手の名前 or id" />
+        <input id="send-amount" placeholder="金額" type="number" />
+        <button class="btn" id="send-btn">送金</button>
+      </div>
+      <div id="send-msg" class="muted" style="margin-top:8px;"></div>
+    </section>
+
+    <section class="card">
+      <h4 style="margin:0 0 8px 0">最近の履歴</h4>
+      <div id="history" class="history muted" style="max-height:240px; overflow:auto;">
+        <!-- history items -->
+      </div>
+    </section>
+  </aside>
+
+  <footer>これはプロトタイプです。実際の運用では認証・監査が必須。</footer>
+</main>
+
+<script>
+/*
+ Simple demo logic.
+ - No backend. Demonstrates client flows, idempotency key usage example, and offline queue.
+ - Replace with real API calls in production.
+*/
+
+const state = {
+  user: { id: "u_123", name:"田中 太郎", balance:1200 },
+  missions: [
+    {id:"m1", description:"朝の読書30分", reward:50, status:"open"},
+    {id:"m2", description:"提出物を出す", reward:30, status:"open"}
+  ],
+  products: [
+    {id:"p1", title:"図書券", price:500, emoji:"📚", stock:5},
+    {id:"p2", title:"おやつ券", price:100, emoji:"🍪", stock:20},
+    {id:"p3", title:"図書館優先予約", price:200, emoji:"🎫", stock:3}
+  ],
+  history: []
+};
+
+function fmt(n){ return n.toLocaleString(); }
+
+function render(){
+  document.getElementById('username').textContent = state.user.name;
+  document.getElementById('balance').textContent = fmt(state.user.balance);
+  // missions
+  const missionsEl = document.getElementById('missions');
+  missionsEl.innerHTML = '';
+  state.missions.forEach(m=>{
+    const div = document.createElement('div');
+    div.className = 'mission-item';
+    div.innerHTML = `<div><strong>${m.description}</strong><div class="muted">報酬 ${m.reward} コイン</div></div>
+    <div><button class="btn" data-id="${m.id}">完了申請</button></div>`;
+    missionsEl.appendChild(div);
+  });
+
+  // products
+  const store = document.getElementById('store');
+  store.innerHTML = '';
+  state.products.forEach(p=>{
+    const el = document.createElement('div');
+    el.className = 'product card';
+    el.innerHTML = `<div class="emoji">${p.emoji}</div><div style="margin-top:8px"><strong>${p.title}</strong></div>
+    <div class="muted">価格 ${p.price}</div>`;
+    el.addEventListener('click', ()=>purchase(p.id));
+    store.appendChild(el);
+  });
+
+  // history
+  const hist = document.getElementById('history');
+  hist.innerHTML = '';
+  state.history.slice().reverse().forEach(t=>{
+    const item = document.createElement('div');
+    item.style.padding='8px';
+    item.style.borderBottom='1px solid #f1f5f8';
+    item.innerHTML = `<div style="font-weight:600">${t.summary}</div><div class="muted">${new Date(t.timestamp).toLocaleString()}</div>`;
+    hist.appendChild(item);
+  });
+}
+
+function addHistory(summary){
+  state.history.push({ summary, timestamp: Date.now() });
+  render();
+}
+
+// idempotency key example
+function makeIdem(){ return 'idem_'+Date.now()+'_'+Math.random().toString(36).slice(2,8); }
+
+// Simulated server-side transaction commit
+function commitTransaction(tx){
+  // optimistic local apply
+  if(tx.type === 'transfer' || tx.type === 'purchase' || tx.type === 'mission_reward'){
+    state.user.balance -= tx.amount;
+  } else if(tx.type === 'mint'){
+    state.user.balance += tx.amount;
+  }
+  addHistory(`${tx.type} ${tx.amount} コイン (${tx.meta?.note || ''})`);
+}
+
+// UI actions
+document.getElementById('btn-refresh').addEventListener('click', ()=>{
+  // in real app: GET /sync/changes?since=...
+  alert('同期を模擬しました（デモ）');
+});
+
+document.getElementById('send-btn').addEventListener('click', ()=>{
+  const to = document.getElementById('send-to').value.trim();
+  const amt = Number(document.getElementById('send-amount').value);
+  const msg = document.getElementById('send-msg');
+  if(!to || !amt || amt<=0){ msg.textContent = '相手と金額を正しく入力してください。'; return; }
+  if(amt > state.user.balance){ msg.textContent = '残高不足です。'; return; }
+  const tx = { idempotency_key: makeIdem(), type:'transfer', from:state.user.id, to, amount:amt, meta:{note:`送金 to ${to}`} };
+  commitTransaction(tx);
+  msg.textContent = `送金済み (${amt} コイン)。id=${tx.idempotency_key}`;
+});
+
+document.getElementById('app').addEventListener('click', (e)=>{
+  if(e.target.matches('.mission-item .btn') || e.target.closest('.mission-item .btn')){
+    const id = e.target.dataset.id;
+    claimMission(id);
+  }
+});
+
+function claimMission(id){
+  const m = state.missions.find(x=>x.id===id);
+  if(!m) return;
+  // create claim — in real app: POST /missions/:id/claim
+  // Here we simulate teacher auto-approval for demo
+  const idem = makeIdem();
+  // server approves and issues reward
+  const tx = { idempotency_key: idem, type:'mission_reward', from:'system', to:state.user.id, amount:m.reward, meta:{note:`ミッション報酬 ${m.description}`} };
+  // apply
+  // mission reward increases balance
+  state.user.balance += tx.amount;
+  addHistory(`ミッション承認: +${tx.amount} (${m.description})`);
+  render();
+}
+
+function purchase(productId){
+  const p = state.products.find(x=>x.id===productId);
+  if(!p) return;
+  if(p.price > state.user.balance){ alert('残高不足です'); return; }
+  const idem = makeIdem();
+  // in real: POST /products/:id/purchase { idempotency_key }
+  // simulate server commit
+  commitTransaction({ idempotency_key: idem, type:'purchase', from:state.user.id, to:p.seller || 'school', amount:p.price, meta:{product_id:p.id, note:p.title} });
+  // reduce stock
+  p.stock = Math.max(0, (p.stock||1)-1);
+  render();
+}
+
+// initial render
+render();
+</script>
+</body>
+</html>
