@@ -98,6 +98,128 @@
     }
   </script>
 </body>
+<script>
+  // サンプル管理者
+  const adminCredentials = { id: "admin", pass: "1234" };
+
+  // 一般ユーザーの初期データ
+  const users = [{ id: "user1", pass: "1111", balance: 50 }];
+  const usersBalances = {};
+  users.forEach(u => usersBalances[u.id] = u.balance);
+
+  let currentUser = null; // 現在ログイン中のユーザーID
+
+  // 画面切り替え関数
+  function showAdminLogin() {
+    document.getElementById('loginSelect').classList.add('hidden');
+    document.getElementById('adminLogin').classList.remove('hidden');
+  }
+  function showUserLogin() {
+    document.getElementById('loginSelect').classList.add('hidden');
+    document.getElementById('userLogin').classList.remove('hidden');
+  }
+  function backToSelect() {
+    document.getElementById('adminLogin').classList.add('hidden');
+    document.getElementById('userLogin').classList.add('hidden');
+    document.getElementById('loginSelect').classList.remove('hidden');
+  }
+
+  // 管理者ログインチェック
+  function adminLoginCheck() {
+    const id = document.getElementById('adminID').value;
+    const pass = document.getElementById('adminPass').value;
+    if(id===adminCredentials.id && pass===adminCredentials.pass){
+      currentUser = id;
+      document.getElementById('adminLogin').classList.add('hidden');
+      document.getElementById('adminPanel').classList.remove('hidden');
+      document.getElementById('tabBar').classList.remove('hidden');
+      renderUsers();
+    } else {
+      alert('IDまたはパスワードが違います');
+    }
+  }
+
+  // 一般ユーザーログインチェック
+  function userLoginCheck() {
+    const id = document.getElementById('uid').value;
+    const pass = document.getElementById('upass').value;
+    const user = users.find(u => u.id===id && u.pass===pass);
+    if(user){
+      currentUser = id;
+      document.getElementById('userLogin').classList.add('hidden');
+      document.getElementById('home').classList.remove('hidden');
+      document.getElementById('tabBar').classList.remove('hidden');
+      document.getElementById('balance').textContent = usersBalances[currentUser];
+      populateTaskUsers(); // 個人発注ユーザーリスト更新
+    } else {
+      alert('IDまたはパスワードが違います');
+    }
+  }
+
+  // 管理者パネル用: ユーザー追加・削除
+  function addUser(){
+    const id = document.getElementById('newUser').value.trim();
+    const pass = document.getElementById('newPass').value.trim();
+    if(!id || !pass){ alert('IDとパスワード両方必要'); return; }
+    if(users.find(u=>u.id===id)){ alert('既に存在'); return; }
+    users.push({id, pass, balance:0});
+    usersBalances[id]=0;
+    renderUsers();
+    populateTaskUsers();
+    document.getElementById('newUser').value='';
+    document.getElementById('newPass').value='';
+  }
+
+  function deleteUser(){
+    const id = document.getElementById('newUser').value.trim();
+    const index = users.findIndex(u=>u.id===id);
+    if(index>=0){
+      users.splice(index,1);
+      delete usersBalances[id];
+      renderUsers();
+      populateTaskUsers();
+      document.getElementById('newUser').value='';
+    } else {
+      alert('存在しません');
+    }
+  }
+
+  function renderUsers(){
+    const list = document.getElementById('userList');
+    list.innerHTML='';
+    users.forEach(u=>{
+      list.innerHTML+=`<div>${u.id} - ${usersBalances[u.id]} Shift</div>`;
+    });
+  }
+
+  function goHome(){
+    document.getElementById('adminPanel').classList.add('hidden');
+    document.getElementById('home').classList.remove('hidden');
+  }
+
+  // 個人発注タスク用ユーザーリスト
+  function populateTaskUsers(){
+    const select = document.getElementById('taskUser');
+    select.innerHTML='';
+    users.forEach(u=>{
+      if(u.id!==currentUser){
+        const opt = document.createElement('option');
+        opt.value = u.id;
+        opt.textContent = u.id;
+        select.appendChild(opt);
+      }
+    });
+  }
+
+  function toggleUserSelect(){
+    const type = document.getElementById('taskType').value;
+    const sel = document.getElementById('taskUser');
+    if(type==='private'){ sel.classList.remove('hidden'); }
+    else { sel.classList.add('hidden'); }
+  }
+
+</script>
+
 </html>
 <div id="home" class="home hidden">
     <h2>Shift ホーム</h2>
