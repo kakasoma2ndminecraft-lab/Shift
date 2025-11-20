@@ -69,68 +69,33 @@
     </div>
   </div>
 
+  <div class="home hidden" id="home">
+    <h2>ホーム</h2>
+    <p>ここにユーザーのホーム画面コンテンツが表示されます。</p>
+  </div>
+
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const users = {};
-      const usersBalances = {};
-      let currentUser = null;
-      let tasks = [];
+    function showAdminLogin() {
+      document.getElementById('loginSelect').classList.add('hidden');
+      document.getElementById('adminLogin').classList.remove('hidden');
+    }
 
-      users['alice'] = 'pass'; usersBalances['alice'] = 15;
-      users['bob'] = 'pass'; usersBalances['bob'] = 8;
+    function showUserLogin() {
+      document.getElementById('loginSelect').classList.add('hidden');
+      document.getElementById('userLogin').classList.remove('hidden');
+    }
 
-      window.showAdminLogin = function(){ document.getElementById('loginSelect').classList.add('hidden'); document.getElementById('adminLogin').classList.remove('hidden'); }
-      window.showUserLogin = function(){ document.getElementById('loginSelect').classList.add('hidden'); document.getElementById('userLogin').classList.remove('hidden'); }
-      window.backToSelect = function(){ document.getElementById('adminLogin').classList.add('hidden'); document.getElementById('userLogin').classList.add('hidden'); document.getElementById('loginSelect').classList.remove('hidden'); }
+    function backToSelect() {
+      document.getElementById('adminLogin').classList.add('hidden');
+      document.getElementById('userLogin').classList.add('hidden');
+      document.getElementById('loginSelect').classList.remove('hidden');
+    }
 
-      window.adminLoginCheck = function(){
-        const id = document.getElementById('adminID').value;
-        const pw = document.getElementById('adminPass').value;
-        if(id === 'Shifted' && pw === 'LetsShift'){
-          currentUser = 'Shifted';
-          users['Shifted'] = users['Shifted'] || 'admin';
-          usersBalances['Shifted'] = usersBalances['Shifted'] || 1000;
-          document.getElementById('adminLogin').classList.add('hidden');
-          document.getElementById('adminPanel').classList.remove('hidden');
-          updateUserList();
-        } else { alert('認証失敗'); }
-      }
-
-      window.updateUserList = function(){
-        const listDiv = document.getElementById('userList');
-        listDiv.innerHTML = '';
-        for(const id in users){
-          const div = document.createElement('div');
-          div.textContent = id + ' - パスワード: ' + users[id];
-          listDiv.appendChild(div);
-        }
-      }
-
-      window.addUser = function(){
-        const id = document.getElementById('newUser').value.trim();
-        const pw = document.getElementById('newPass').value.trim();
-        if(!id || !pw){ alert('ID/PW不足'); return; }
-        users[id] = pw; usersBalances[id] = usersBalances[id] || 10;
-        alert('追加完了: ' + id);
-        document.getElementById('newUser').value = '';
-        document.getElementById('newPass').value = '';
-        updateUserList();
-      }
-
-      window.deleteUser = function(){
-        const id = document.getElementById('newUser').value.trim();
-        if(users[id]){ delete users[id]; delete usersBalances[id]; alert('削除完了'); updateUserList(); } else { alert('存在しないID'); }
-      }
-
-      window.userLoginCheck = function(){
-        const id = document.getElementById('uid').value.trim();
-        const pw = document.getElementById('upass').value.trim();
-        if(users[id] && users[id] === pw){
-          currentUser = id;
-          document.getElementById('userLogin').classList.add('hidden');
-        } else { alert('ログイン失敗'); }
-      }
-    });
+    function goHome() {
+      document.getElementById('adminPanel').classList.add('hidden');
+      document.getElementById('loginSelect').classList.add('hidden');
+      document.getElementById('home').classList.remove('hidden');
+    }
   </script>
 </body>
 </html>
